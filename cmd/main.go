@@ -20,14 +20,14 @@ var alarmSound embed.FS
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "goalarm"}
-	
+
 	var setCmd = &cobra.Command{
-			Use:   "set [time]",
-			Short: "Set an alarm",
-			Args:  cobra.MinimumNArgs(1),
-			Run: func(cmd *cobra.Command, args []string) {
-					setTime(args[0])
-			},
+		Use:   "set [time]",
+		Short: "Set an alarm",
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+				setTime(args[0])
+		},
 	}
 
 
@@ -56,7 +56,8 @@ func setTime(timeStr string) {
 
 	time.Sleep(diff)
 
-	go playAlarmSound()
+	done := make(chan bool)
+	go playAlarmSound(done)
 
 	fmt.Println("Alarm! The time is now", targetTime.Format(layout))
 	fmt.Println("Press 'Enter' to stop the alarm.")
@@ -74,30 +75,38 @@ func setTime(timeStr string) {
 			panic(err)
 		}
 		if char == '\r' { // Enter pressed
-			speaker.Clear() // Stop the alarm
+			done <- true
 			break
 		}
 	}
 }
-func playAlarmSound() {
-    alarmFile, err := alarmSound.Open("assets/alarm.wav")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer alarmFile.Close()
 
-    streamer, format, err := wav.Decode(alarmFile)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer streamer.Close()
+func playAlarmSound(done chan bool) {
+	alarmFile, err := alarmSound.Open("assets/alarm.wav")
+	if err != nil {
+    log.Fatal(err)
+	}
+	defer alarmFile.Close()
 
-    speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	streamer, format, err := wav.Decode(alarmFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
 
-    done := make(chan bool)
-    speaker.Play(beep.Seq(streamer, beep.Callback(func() {
-        done <- true
-    })))
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 
-    <-done
+	loop := beep.Loop(-1, streamer)
+
+	go func() {
+		select {
+		case <-done:
+		case <-time.After(15 * time.Minute):
+			fmt.Println("15 minutes have passed, stopping the alarm automatically")
+      os.Exit(0)
+		}
+		speaker.Clear() // Clear the speaker to stop playing
+	}()
+
+	speaker.Play(loop)
 }
