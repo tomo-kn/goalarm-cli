@@ -2,13 +2,21 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
+	"github.com/gopxl/beep"
+	"github.com/gopxl/beep/speaker"
+	"github.com/gopxl/beep/wav"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
+
+//go:embed assets/alarm.wav
+var alarmSound embed.FS
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "goalarm"}
@@ -48,6 +56,8 @@ func setTime(timeStr string) {
 
 	time.Sleep(diff)
 
+	go playAlarmSound()
+
 	fmt.Println("Alarm! The time is now", targetTime.Format(layout))
 	fmt.Println("Press 'Enter' to stop the alarm.")
 
@@ -64,7 +74,30 @@ func setTime(timeStr string) {
 			panic(err)
 		}
 		if char == '\r' { // Enter pressed
+			speaker.Clear() // Stop the alarm
 			break
 		}
 	}
+}
+func playAlarmSound() {
+    alarmFile, err := alarmSound.Open("assets/alarm.wav")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer alarmFile.Close()
+
+    streamer, format, err := wav.Decode(alarmFile)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer streamer.Close()
+
+    speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+
+    done := make(chan bool)
+    speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+        done <- true
+    })))
+
+    <-done
 }
