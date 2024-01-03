@@ -49,10 +49,13 @@ func setTime(timeStr string) {
 
 	if targetTime.Before(now) {
 		targetTime = targetTime.Add(24 * time.Hour)
+		fmt.Printf("Alarm set for %s (tomorrow)\n", targetTime.Format(layout))
+	} else {
+		fmt.Printf("Alarm set for %s (today)\n", targetTime.Format(layout))
 	}
 
 	diff := targetTime.Sub(now)
-	fmt.Println("Alarm set for", targetTime.Format(layout))
+	fmt.Println("Waiting for alarm... Press Ctrl + C to cancel.")
 
 	time.Sleep(diff)
 
