@@ -53,8 +53,10 @@ func setTime(timeStr string) {
 	} else {
 		fmt.Printf("Alarm set for %s (today)\n", targetTime.Format(layout))
 	}
+  fmt.Println("Current time:", now.Format(layout))
 
 	diff := targetTime.Sub(now)
+  fmt.Println("Sleeping for", diff)
 	fmt.Println("Waiting for alarm... Press Ctrl + C to cancel.")
 
 	time.Sleep(diff)
@@ -62,6 +64,7 @@ func setTime(timeStr string) {
 	done := make(chan bool)
 	go playAlarmSound(done)
 
+  fmt.Println("Woke up at", time.Now().Format(layout))
 	fmt.Println("Alarm! The time is now", targetTime.Format(layout))
 	fmt.Println("Press 'Enter' to stop the alarm.")
 
